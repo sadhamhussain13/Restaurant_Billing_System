@@ -6,7 +6,7 @@
     <title>Restaurant Billing System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <!-- Floating Particles -->
@@ -156,6 +156,37 @@
                 </button>
             </div>
 
+            <!-- Filter Section -->
+            <div class="glass-strong rounded-2xl p-6 mb-6">
+                <h3 class="text-xl font-bold text-white mb-4">Filter Reports</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <button onclick="filterReports('all')" id="filter-all" class="filter-btn active px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                        All Time
+                    </button>
+                    <button onclick="filterReports('today')" id="filter-today" class="filter-btn px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition">
+                        Today
+                    </button>
+                    <button onclick="filterReports('week')" id="filter-week" class="filter-btn px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition">
+                        This Week
+                    </button>
+                    <button onclick="filterReports('month')" id="filter-month" class="filter-btn px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition">
+                        This Month
+                    </button>
+                    <button onclick="showCustomDateFilter()" id="filter-custom" class="filter-btn px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition">
+                        Custom Range
+                    </button>
+                </div>
+                
+                <!-- Custom Date Range -->
+                <div id="custom-date-range" class="hidden mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <input type="date" id="date-from" class="px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30">
+                    <input type="date" id="date-to" class="px-4 py-2 rounded-lg bg-white/20 text-white border border-white/30">
+                    <button onclick="applyCustomDateFilter()" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                        Apply Filter
+                    </button>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div class="glass-strong rounded-2xl p-6">
                     <h3 class="text-lg text-gray-300 mb-2">Total Revenue</h3>
@@ -175,9 +206,12 @@
             <div class="glass-strong rounded-2xl p-6">
                 <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
                     <h3 class="text-xl font-bold text-white">Invoice History</h3>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 flex-wrap">
                         <button onclick="exportCSV()" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm">
                             Export CSV
+                        </button>
+                        <button onclick="downloadHistoricalBackup()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
+                            📦 Get Backup
                         </button>
                         <button onclick="clearAllReports()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm">
                             Clear All
@@ -192,7 +226,6 @@
                                 <tr class="border-b border-white/20">
                                     <th class="text-left py-3 px-2">Invoice #</th>
                                     <th class="text-left py-3 px-2">Date & Time</th>
-                                    <th class="text-left py-3 px-2">Items</th>
                                     <th class="text-right py-3 px-2">Total</th>
                                     <th class="text-center py-3 px-2">Actions</th>
                                 </tr>
@@ -201,6 +234,10 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+                
+                <!-- Pagination Controls -->
+                <div id="pagination-controls" class="mt-4 flex justify-between items-center flex-wrap gap-4 hidden">
                 </div>
             </div>
         </div>
@@ -212,7 +249,7 @@
             <button onclick="closePaymentModal()" class="absolute top-4 right-4 text-white text-2xl hover:text-gray-300">×</button>
             <h3 class="text-2xl font-bold text-white mb-6 text-center">Scan to Pay</h3>
             <div class="bg-white p-6 rounded-lg mb-6">
-                <img src="./sample_QR_Code.png" alt="QR Code" class="w-full">
+                <img src="https://images.unsplash.com/photo-1613243555988-441166d4d6fd?w=400&h=400&fit=crop" alt="QR Code" class="w-full">
             </div>
             <p class="text-white text-center mb-4">Total Amount: <span id="payment-amount" class="font-bold text-xl text-green-400"></span></p>
             <button onclick="completePayment()" class="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition">
