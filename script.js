@@ -10,6 +10,8 @@ let customDateFrom = null;
 let customDateTo = null;
 let currentPage = 1;
 let itemsPerPage = 10;
+let dashboardPeriod = 'week';
+let dashboardCharts = {};
 
 // Default menu items
 const defaultMenu = [
@@ -1070,13 +1072,24 @@ function exportCSV() {
 // Page navigation
 function showMenu() {
     document.getElementById('menu-page').classList.remove('hidden');
+    document.getElementById('dashboard-page').classList.add('hidden');
     document.getElementById('manage-menu-page').classList.add('hidden');
     document.getElementById('sales-reports-page').classList.add('hidden');
     closeMobileMenu();
 }
 
+function showDashboard() {
+    document.getElementById('menu-page').classList.add('hidden');
+    document.getElementById('dashboard-page').classList.remove('hidden');
+    document.getElementById('manage-menu-page').classList.add('hidden');
+    document.getElementById('sales-reports-page').classList.add('hidden');
+    renderDashboard();
+    closeMobileMenu();
+}
+
 function showManageMenu() {
     document.getElementById('menu-page').classList.add('hidden');
+    document.getElementById('dashboard-page').classList.add('hidden');
     document.getElementById('manage-menu-page').classList.remove('hidden');
     document.getElementById('sales-reports-page').classList.add('hidden');
     renderManageMenu();
@@ -1085,6 +1098,7 @@ function showManageMenu() {
 
 function showSalesReports() {
     document.getElementById('menu-page').classList.add('hidden');
+    document.getElementById('dashboard-page').classList.add('hidden');
     document.getElementById('manage-menu-page').classList.add('hidden');
     document.getElementById('sales-reports-page').classList.remove('hidden');
     renderSalesReports();
@@ -1098,3 +1112,411 @@ window.addEventListener('DOMContentLoaded', () => {
     renderMenu();
     renderCart();
 });
+
+// Dashboard Functions
+function setDashboardPeriod(period) {
+    dashboardPeriod = period;
+    
+    // Update button states
+    document.querySelectorAll('.dash-filter-btn').forEach(btn => {
+        btn.classList.remove('active', 'bg-purple-600');
+        btn.classList.add('bg-white/20');
+    });
+    
+    const activeBtn = document.getElementById(`dash-filter-${period}`);
+    activeBtn.classList.add('active', 'bg-purple-600');
+    activeBtn.classList.remove('bg-white/20');
+    
+    renderDashboard();
+}
+
+function getDashboardDateRange() {
+    const now = new Date();
+    let startDate, endDate = new Date();
+    
+    switch(dashboardPeriod) {
+        case 'today':
+            startDate = new Date(now.setHours(0, 0, 0, 0));
+            break;
+        case 'week':
+            startDate = new Date(now);
+            startDate.setDate(now.getDate() - now.getDay() + 1); // Monday
+            startDate.setHours(0, 0, 0, 0);
+            break;
+        case 'month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            break;
+        case 'last7':
+            startDate = new Date(now);
+            startDate.setDate(now.getDate() - 6);
+            startDate.setHours(0, 0, 0, 0);
+            break;
+        case 'last30':
+            startDate = new Date(now);
+            startDate.setDate(now.getDate() - 29);
+            startDate.setHours(0, 0, 0, 0);
+            break;
+        default:
+            startDate = new Date(now);
+            startDate.setDate(now.getDate() - 6);
+            startDate.setHours(0, 0, 0, 0);
+    }
+    
+    return { startDate, endDate };
+}
+
+function getFilteredDashboardInvoices() {
+    const { startDate, endDate } = getDashboardDateRange();
+    
+    return invoices.filter(invoice => {
+        const invoiceDate = new Date(invoice.date);
+        return invoiceDate >= startDate && invoiceDate <= endDate;
+    });
+}
+
+function renderDashboard() {
+    const filteredInvoices = getFilteredDashboardInvoices();
+    
+    // Calculate metrics
+    const totalRevenue = filteredInvoices.reduce((sum, inv) => sum + inv.total, 0);
+    const totalOrders = filteredInvoices.length;
+    const totalItemsSold = filteredInvoices.reduce((sum, inv) => 
+        sum + inv.items.reduce((itemSum, item) => itemSum + item.quantity, 0), 0);
+    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+    
+    // Update metric cards
+    document.getElementById('dash-revenue').textContent = `₹${totalRevenue.toFixed(0)}`;
+    document.getElementById('dash-orders').textContent = totalOrders;
+    document.getElementById('dash-items-sold').textContent = totalItemsSold;
+    document.getElementById('dash-avg-order').textContent = `₹${avgOrderValue.toFixed(0)}`;
+    
+    // Calculate trends (compare with previous period)
+    updateTrends(filteredInvoices);
+    
+    // Render charts
+    renderRevenueChart(filteredInvoices);
+    renderTopItemsChart(filteredInvoices);
+    renderRevenueByItemChart(filteredInvoices);
+    renderDistributionChart(filteredInvoices);
+    
+    // Generate insights
+    generateBusinessInsights(filteredInvoices);
+}
+
+function updateTrends(currentInvoices) {
+    // This is simplified - in production you'd compare with actual previous period
+    const hasData = currentInvoices.length > 0;
+    
+    document.getElementById('dash-revenue-change').textContent = hasData ? '↑ Active period' : 'No data';
+    document.getElementById('dash-orders-change').textContent = hasData ? `${currentInvoices.length} orders` : 'No orders';
+    document.getElementById('dash-items-change').textContent = hasData ? 'Items sold' : 'No items';
+    document.getElementById('dash-avg-change').textContent = hasData ? 'Per order' : 'No data';
+}
+
+function renderRevenueChart(filteredInvoices) {
+    const ctx = document.getElementById('revenueChart');
+    
+    // Destroy existing chart
+    if (dashboardCharts.revenue) {
+        dashboardCharts.revenue.destroy();
+    }
+    
+    // Group by date
+    const revenueByDate = {};
+    const { startDate, endDate } = getDashboardDateRange();
+    
+    // Initialize all dates with 0
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const dateKey = d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        revenueByDate[dateKey] = 0;
+    }
+    
+    // Fill actual revenue
+    filteredInvoices.forEach(invoice => {
+        const date = new Date(invoice.date);
+        const dateKey = date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        if (revenueByDate[dateKey] !== undefined) {
+            revenueByDate[dateKey] += invoice.total;
+        }
+    });
+    
+    dashboardCharts.revenue = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: Object.keys(revenueByDate),
+            datasets: [{
+                label: 'Revenue (₹)',
+                data: Object.values(revenueByDate),
+                borderColor: 'rgba(44, 47, 232, 0.8)',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: { color: 'white' }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: 'white' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                },
+                x: {
+                    ticks: { color: 'white' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                }
+            }
+        }
+    });
+}
+
+function renderTopItemsChart(filteredInvoices) {
+    const ctx = document.getElementById('topItemsChart');
+    
+    if (dashboardCharts.topItems) {
+        dashboardCharts.topItems.destroy();
+    }
+    
+    // Calculate item quantities
+    const itemQuantities = {};
+    filteredInvoices.forEach(invoice => {
+        invoice.items.forEach(item => {
+            itemQuantities[item.name] = (itemQuantities[item.name] || 0) + item.quantity;
+        });
+    });
+    
+    // Sort and get top 8
+    const sortedItems = Object.entries(itemQuantities)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8);
+    
+    dashboardCharts.topItems = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: sortedItems.map(item => item[0]),
+            datasets: [{
+                label: 'Quantity Sold',
+                data: sortedItems.map(item => item[1]),
+                backgroundColor: [
+                    'rgba(44, 47, 232, 0.8)',
+                    'rgba(118, 63, 248, 0.96)',
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(16, 185, 129, 0.8)',
+                    'rgba(245, 158, 11, 0.8)',
+                    'rgba(239, 68, 68, 0.8)',
+                    'rgba(236, 72, 153, 0.8)',
+                    'rgba(148, 163, 184, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { color: 'white', stepSize: 1 },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                },
+                x: {
+                    ticks: { color: 'white' },
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+}
+
+function renderRevenueByItemChart(filteredInvoices) {
+    const ctx = document.getElementById('revenueByItemChart');
+    
+    if (dashboardCharts.revenueByItem) {
+        dashboardCharts.revenueByItem.destroy();
+    }
+    
+    // Calculate revenue by item
+    const itemRevenue = {};
+    filteredInvoices.forEach(invoice => {
+        invoice.items.forEach(item => {
+            const revenue = item.price * item.quantity;
+            itemRevenue[item.name] = (itemRevenue[item.name] || 0) + revenue;
+        });
+    });
+    
+    // Sort and get top 8
+    const sortedItems = Object.entries(itemRevenue)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8);
+    
+    dashboardCharts.revenueByItem = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: sortedItems.map(item => item[0]),
+            datasets: [{
+                label: 'Revenue (₹)',
+                data: sortedItems.map(item => item[1]),
+                backgroundColor: 'rgba(44, 47, 232, 0.8)',
+                borderColor: 'rgba(16, 64, 185, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: { color: 'white' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                },
+                y: {
+                    ticks: { color: 'white' },
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+}
+
+function renderDistributionChart(filteredInvoices) {
+    const ctx = document.getElementById('distributionChart');
+    
+    if (dashboardCharts.distribution) {
+        dashboardCharts.distribution.destroy();
+    }
+    
+    // Calculate item quantities for pie chart
+    const itemQuantities = {};
+    filteredInvoices.forEach(invoice => {
+        invoice.items.forEach(item => {
+            itemQuantities[item.name] = (itemQuantities[item.name] || 0) + item.quantity;
+        });
+    });
+    
+    // Get top 5 and group rest as "Others"
+    const sortedItems = Object.entries(itemQuantities).sort((a, b) => b[1] - a[1]);
+    const top5 = sortedItems.slice(0, 5);
+    const othersSum = sortedItems.slice(5).reduce((sum, item) => sum + item[1], 0);
+    
+    const labels = top5.map(item => item[0]);
+    const data = top5.map(item => item[1]);
+    
+    if (othersSum > 0) {
+        labels.push('Others');
+        data.push(othersSum);
+    }
+    
+    dashboardCharts.distribution = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: [
+                    'rgba(37, 40, 245, 0.8)',
+                    'rgba(100, 40, 239, 0.8)',
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(16, 185, 129, 0.8)',
+                    'rgba(245, 158, 11, 0.8)',
+                    'rgba(148, 163, 184, 0.5)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: 'white', padding: 15 }
+                }
+            }
+        }
+    });
+}
+
+function generateBusinessInsights(filteredInvoices) {
+    const container = document.getElementById('business-insights');
+    container.innerHTML = '';
+    
+    if (filteredInvoices.length === 0) {
+        container.innerHTML = '<p class="text-black-300 col-span-2">No data available for selected period</p>';
+        return;
+    }
+    
+    // Calculate insights
+    const itemData = {};
+    let totalRevenue = 0;
+    
+    filteredInvoices.forEach(invoice => {
+        totalRevenue += invoice.total;
+        invoice.items.forEach(item => {
+            if (!itemData[item.name]) {
+                itemData[item.name] = { quantity: 0, revenue: 0 };
+            }
+            itemData[item.name].quantity += item.quantity;
+            itemData[item.name].revenue += item.price * item.quantity;
+        });
+    });
+    
+    // Find best performers
+    const topByQuantity = Object.entries(itemData).sort((a, b) => b[1].quantity - a[1].quantity)[0];
+    const topByRevenue = Object.entries(itemData).sort((a, b) => b[1].revenue - a[1].revenue)[0];
+    const avgOrderValue = totalRevenue / filteredInvoices.length;
+    
+    const insights = [
+        {
+            icon: '🏆',
+            title: 'Best Seller',
+            value: topByQuantity[0],
+            detail: `${topByQuantity[1].quantity} units sold`
+        },
+        {
+            icon: '💰',
+            title: 'Revenue Champion',
+            value: topByRevenue[0],
+            detail: `₹${topByRevenue[1].revenue.toFixed(0)} earned`
+        },
+        {
+            icon: '📊',
+            title: 'Average Order',
+            value: `₹${avgOrderValue.toFixed(0)}`,
+            detail: `From ${filteredInvoices.length} orders`
+        },
+        {
+            icon: '📈',
+            title: 'Total Items Sold',
+            value: Object.values(itemData).reduce((sum, item) => sum + item.quantity, 0),
+            detail: `Across ${Object.keys(itemData).length} items`
+        }
+    ];
+    
+    insights.forEach(insight => {
+        const card = document.createElement('div');
+        card.className = 'bg-white/10 rounded-lg p-4 border border-white/20';
+        card.innerHTML = `
+            <div class="flex items-center gap-3 mb-2">
+                <span class="text-3xl">${insight.icon}</span>
+                <div>
+                    <h4 class="text-sm text-gray-300">${insight.title}</h4>
+                    <p class="text-xl font-bold text-white">${insight.value}</p>
+                </div>
+            </div>
+            <p class="text-sm text-black-400">${insight.detail}</p>
+        `;
+        container.appendChild(card);
+    });
+}

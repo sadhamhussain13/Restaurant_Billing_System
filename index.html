@@ -6,6 +6,7 @@
     <title>Restaurant Billing System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -26,11 +27,14 @@
                 
                 <!-- Desktop Navigation -->
                 <div class="hidden md:flex gap-3">
+                    <button onclick="showDashboard()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                        📊 Dashboard
+                    </button>
                     <button onclick="showManageMenu()" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
                         ⚙️ Manage Menu
                     </button>
                     <button onclick="showSalesReports()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
-                        📊 Sales Reports
+                        📋 Sales Reports
                     </button>
                 </div>
                 
@@ -42,11 +46,14 @@
             
             <!-- Mobile Navigation Dropdown -->
             <div id="mobile-menu" class="mobile-menu md:hidden mt-4">
+                <button onclick="showDashboard(); closeMobileMenu()" class="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition mb-2">
+                    📊 Dashboard
+                </button>
                 <button onclick="showManageMenu(); closeMobileMenu()" class="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition mb-2">
                     ⚙️ Manage Menu
                 </button>
                 <button onclick="showSalesReports(); closeMobileMenu()" class="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
-                    📊 Sales Reports
+                    📋 Sales Reports
                 </button>
             </div>
         </div>
@@ -80,7 +87,7 @@
                         </div>
                         <div class="flex justify-between text-white text-xl font-bold">
                             <span>Total:</span>
-                            <span id="total" class="text-green-400">₹0.00</span>
+                            <span id="total" class="text-amber-400">₹0.00</span>
                         </div>
                     </div>
 
@@ -92,6 +99,127 @@
                             🗑️ Clear Cart
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Page -->
+        <div id="dashboard-page" class="hidden">
+            <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+                <h2 class="text-3xl font-bold text-white">Business Dashboard</h2>
+                <button onclick="showMenu()" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
+                    ← Back to Menu
+                </button>
+            </div>
+
+            <!-- Dashboard Period Filter -->
+            <div class="glass-strong rounded-2xl p-6 mb-6">
+                <h3 class="text-xl font-bold text-white mb-4">Select Period</h3>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                    <button onclick="setDashboardPeriod('today')" id="dash-filter-today" class="dash-filter-btn active px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                        Today
+                    </button>
+                    <button onclick="setDashboardPeriod('week')" id="dash-filter-week" class="dash-filter-btn px-4 py-2 bg-white/20  text-white rounded-lg hover:bg-white/30 transition">
+                        This Week
+                    </button>
+                    <button onclick="setDashboardPeriod('month')" id="dash-filter-month" class="dash-filter-btn px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition">
+                        This Month
+                    </button>
+                    <button onclick="setDashboardPeriod('last7')" id="dash-filter-last7" class="dash-filter-btn px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition">
+                        Last 7 Days
+                    </button>
+                    <button onclick="setDashboardPeriod('last30')" id="dash-filter-last30" class="dash-filter-btn px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition">
+                        Last 30 Days
+                    </button>
+                </div>
+            </div>
+
+            <!-- Key Metrics Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                <div class="glass-strong rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm text-gray-300">Total Revenue</h3>
+                        <span class="text-2xl">💰</span>
+                    </div>
+                    <p id="dash-revenue" class="text-3xl font-bold text-white">₹0</p>
+                    <p id="dash-revenue-change" class="text-sm text-green-400 mt-2">—</p>
+                </div>
+                
+                <div class="glass-strong rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm text-gray-300">Total Orders</h3>
+                        <span class="text-2xl">🧾</span>
+                    </div>
+                    <p id="dash-orders" class="text-3xl font-bold text-white">0</p>
+                    <p id="dash-orders-change" class="text-sm text-green-400 mt-2">—</p>
+                </div>
+                
+                <div class="glass-strong rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm text-gray-300">Items Sold</h3>
+                        <span class="text-2xl">📦</span>
+                    </div>
+                    <p id="dash-items-sold" class="text-3xl font-bold text-white">0</p>
+                    <p id="dash-items-change" class="text-sm text-green-400 mt-2">—</p>
+                </div>
+                
+                <div class="glass-strong rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-sm text-gray-300">Avg Order Value</h3>
+                        <span class="text-2xl">📊</span>
+                    </div>
+                    <p id="dash-avg-order" class="text-3xl font-bold text-white">₹0</p>
+                    <p id="dash-avg-change" class="text-sm text-green-400 mt-2">—</p>
+                </div>
+            </div>
+
+            <!-- Charts Row 1 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Revenue Trend Chart -->
+                <div class="glass-strong rounded-2xl p-6">
+                    <h3 class="text-xl font-bold text-white mb-4">📈 Revenue Trend</h3>
+                    <p class="text-sm text-gray-300 mb-4">Daily revenue over selected period</p>
+                    <div class="relative h-80">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Top Selling Items Chart -->
+                <div class="glass-strong rounded-2xl p-6">
+                    <h3 class="text-xl font-bold text-white mb-4">🏆 Top Selling Items</h3>
+                    <p class="text-sm text-gray-300 mb-4">Items by quantity sold</p>
+                    <div class="relative h-80">
+                        <canvas id="topItemsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row 2 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Revenue by Item Chart -->
+                <div class="glass-strong rounded-2xl p-6">
+                    <h3 class="text-xl font-bold text-white mb-4">💵 Revenue by Item</h3>
+                    <p class="text-sm text-gray-300 mb-4">Which items generate most revenue</p>
+                    <div class="relative h-80">
+                        <canvas id="revenueByItemChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Sales Distribution Chart -->
+                <div class="glass-strong rounded-2xl p-6">
+                    <h3 class="text-xl font-bold text-white mb-4">🥧 Sales Distribution</h3>
+                    <p class="text-sm text-gray-300 mb-4">Market share of top items</p>
+                    <div class="relative h-80">
+                        <canvas id="distributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insights Section -->
+            <div class="glass-strong rounded-2xl p-6">
+                <h3 class="text-xl font-bold text-white mb-4">💡 Business Insights</h3>
+                <div id="business-insights" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Insights will be generated here -->
                 </div>
             </div>
         </div>
