@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Billing System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Floating Particles -->
+    <div id="particles"></div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Header -->
+    <header class="glass-strong fixed top-0 w-full z-50">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="text-4xl">🍽️</span>
+                    <h1 class="text-xl md:text-2xl lg:text-3xl font-bold text-white">Restaurant Billing System</h1>
+                </div>
+                
+                <!-- Desktop Navigation -->
+                <div class="hidden md:flex gap-3">
+                    <button onclick="showManageMenu()" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                        ⚙️ Manage Menu
+                    </button>
+                    <button onclick="showSalesReports()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                        📊 Sales Reports
+                    </button>
+                </div>
+                
+                <!-- Mobile Menu Toggle -->
+                <button onclick="toggleMobileMenu()" class="md:hidden text-white text-3xl">
+                    ☰
+                </button>
+            </div>
+            
+            <!-- Mobile Navigation Dropdown -->
+            <div id="mobile-menu" class="mobile-menu md:hidden mt-4">
+                <button onclick="showManageMenu(); closeMobileMenu()" class="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition mb-2">
+                    ⚙️ Manage Menu
+                </button>
+                <button onclick="showSalesReports(); closeMobileMenu()" class="w-full px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                    📊 Sales Reports
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 pt-24 pb-8">
+        <!-- Menu Page -->
+        <div id="menu-page" class="flex flex-col lg:flex-row gap-6">
+            <!-- Menu Items Grid -->
+            <div class="flex-1">
+                <h2 class="text-3xl font-bold text-white mb-6">Menu</h2>
+                <div id="menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <!-- Menu items will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Cart Panel -->
+            <div class="lg:w-96 lg:sticky lg:top-24 h-fit">
+                <div class="glass-strong rounded-2xl p-6">
+                    <h3 class="text-2xl font-bold text-white mb-6">Current Order</h3>
+                    
+                    <div id="cart-items" class="space-y-4 mb-6 max-h-96 overflow-y-auto">
+                        <p class="text-gray-300 text-center py-8">Cart is empty</p>
+                    </div>
+
+                    <div class="border-t border-white/20 pt-4 mb-6">
+                        <div class="flex justify-between text-white mb-2">
+                            <span>Subtotal:</span>
+                            <span id="subtotal">₹0.00</span>
+                        </div>
+                        <div class="flex justify-between text-white text-xl font-bold">
+                            <span>Total:</span>
+                            <span id="total" class="text-green-400">₹0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <button onclick="payNow()" class="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">
+                            💳 Pay Now
+                        </button>
+                        <button onclick="confirmClearCart()" class="w-full py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition">
+                            🗑️ Clear Cart
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manage Menu Page -->
+        <div id="manage-menu-page" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-white">Manage Menu</h2>
+                <button onclick="showMenu()" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
+                    ← Back to Menu
+                </button>
+            </div>
+
+            <div class="glass-strong rounded-2xl p-6 mb-6">
+                <h3 class="text-xl font-bold text-white mb-4">Add New Item</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" id="item-name" placeholder="Item Name" class="px-4 py-2 rounded-lg bg-white/20 text-white placeholder-gray-300 border border-white/30">
+                    <input type="number" id="item-price" placeholder="Price" class="px-4 py-2 rounded-lg bg-white/20 text-white placeholder-gray-300 border border-white/30">
+                    
+                    <!-- Image Upload Section -->
+                    <div class="md:col-span-2">
+                        <label class="block text-white mb-2 font-semibold">Item Image</label>
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <label class="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition cursor-pointer text-center">
+                                📁 Upload Image
+                                <input type="file" id="item-image-file" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                            </label>
+                            <span class="text-white text-center py-2">OR</span>
+                            <input type="text" id="item-image-url" placeholder="Paste Image URL" class="flex-1 px-4 py-2 rounded-lg bg-white/20 text-white placeholder-gray-300 border border-white/30">
+                        </div>
+                        
+                        <!-- Image Preview -->
+                        <div id="image-preview" class="mt-4 hidden">
+                            <p class="text-white mb-2">Preview:</p>
+                            <img id="preview-img" src="" alt="Preview" class="w-full h-32 object-cover rounded-lg">
+                        </div>
+                    </div>
+                    
+                    <button onclick="addMenuItem()" class="px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition md:col-span-2">
+                        ➕ Add Item
+                    </button>
+                    <button onclick="cancelEdit()" class="px-6 py-2 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition md:col-span-2 hidden" id="cancel-edit-btn">
+                        ✕ Cancel Edit
+                    </button>
+                </div>
+            </div>
+
+            <div class="glass-strong rounded-2xl p-6">
+                <h3 class="text-xl font-bold text-white mb-4">Current Menu Items</h3>
+                <div id="manage-menu-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <!-- Menu management items will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Sales Reports Page -->
+        <div id="sales-reports-page" class="hidden">
+            <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+                <h2 class="text-3xl font-bold text-white">Sales Reports</h2>
+                <button onclick="showMenu()" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition">
+                    ← Back to Menu
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="glass-strong rounded-2xl p-6">
+                    <h3 class="text-lg text-gray-300 mb-2">Total Revenue</h3>
+                    <p id="total-revenue" class="text-3xl font-bold text-white">₹0.00</p>
+                </div>
+                <div class="glass-strong rounded-2xl p-6">
+                    <h3 class="text-lg text-gray-300 mb-2">Total Transactions</h3>
+                    <p id="total-transactions" class="text-3xl font-bold text-white">0</p>
+                </div>
+                <div class="glass-strong rounded-2xl p-6">
+                    <h3 class="text-lg text-gray-300 mb-2">🏆 Top Selling Item</h3>
+                    <p id="top-selling-item" class="text-2xl font-bold text-white">-</p>
+                    <p id="top-selling-count" class="text-sm text-green-400 mt-1">-</p>
+                </div>
+            </div>
+
+            <div class="glass-strong rounded-2xl p-6">
+                <div class="flex justify-between items-center mb-4 flex-wrap gap-4">
+                    <h3 class="text-xl font-bold text-white">Invoice History</h3>
+                    <div class="flex gap-2">
+                        <button onclick="exportCSV()" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm">
+                            Export CSV
+                        </button>
+                        <button onclick="clearAllReports()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm">
+                            Clear All
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <div id="invoice-table-container">
+                        <p id="no-invoices-msg" class="text-center py-8 text-gray-300">No invoices yet</p>
+                        <table id="invoice-table" class="w-full text-white hidden">
+                            <thead>
+                                <tr class="border-b border-white/20">
+                                    <th class="text-left py-3 px-2">Invoice #</th>
+                                    <th class="text-left py-3 px-2">Date & Time</th>
+                                    <th class="text-left py-3 px-2">Items</th>
+                                    <th class="text-right py-3 px-2">Total</th>
+                                    <th class="text-center py-3 px-2">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoice-list">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="modal">
+        <div class="glass-strong rounded-2xl p-8 max-w-md w-full mx-4 relative">
+            <button onclick="closePaymentModal()" class="absolute top-4 right-4 text-white text-2xl hover:text-gray-300">×</button>
+            <h3 class="text-2xl font-bold text-white mb-6 text-center">Scan to Pay</h3>
+            <div class="bg-white p-6 rounded-lg mb-6">
+                <img src="./sample_QR_Code.png" alt="QR Code" class="w-full">
+            </div>
+            <p class="text-white text-center mb-4">Total Amount: <span id="payment-amount" class="font-bold text-xl text-green-400"></span></p>
+            <button onclick="completePayment()" class="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition">
+                ✓ Payment Done
+            </button>
+        </div>
+    </div>
+
+    <!-- Clear Cart Confirmation Modal -->
+    <div id="clear-cart-modal" class="modal">
+        <div class="glass-strong rounded-2xl p-8 max-w-md w-full mx-4">
+            <h3 class="text-2xl font-bold text-white mb-4">Clear Cart?</h3>
+            <p class="text-gray-300 mb-6">Are you sure you want to clear the cart? This action cannot be undone.</p>
+            <div class="flex gap-3">
+                <button onclick="closeClearCartModal()" class="flex-1 py-3 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition">
+                    Cancel
+                </button>
+                <button onclick="clearCart()" class="flex-1 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition">
+                    Clear Cart
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
