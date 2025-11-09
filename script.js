@@ -5,6 +5,11 @@ let invoices = [];
 let isPaid = false;
 let uploadedImageData = null;
 let editingItemId = null;
+let currentFilter = 'all';
+let customDateFrom = null;
+let customDateTo = null;
+let currentPage = 1;
+let itemsPerPage = 10;
 
 // Default menu items
 const defaultMenu = [
@@ -22,12 +27,72 @@ const defaultMenu = [
 function loadData() {
     const savedMenu = localStorage.getItem('menuItems');
     const savedInvoices = localStorage.getItem('invoices');
+    const lastResetDate = localStorage.getItem('lastResetDate');
     
     menuItems = savedMenu ? JSON.parse(savedMenu) : defaultMenu;
     invoices = savedInvoices ? JSON.parse(savedInvoices) : [];
     
+    // Check if we need to auto-reset (midnight passed)
+    checkAndResetDaily(lastResetDate);
+    
     // Don't load cart from storage - start fresh each session
     cart = [];
+}
+
+// Check if midnight has passed and reset if needed
+function checkAndResetDaily(lastResetDate) {
+    const today = new Date().toDateString();
+    
+    if (lastResetDate !== today) {
+        // Midnight has passed, backup and reset
+        if (invoices.length > 0) {
+            autoBackupAndReset();
+        }
+        localStorage.setItem('lastResetDate', today);
+    }
+}
+
+// Auto backup invoices to CSV and reset
+function autoBackupAndReset() {
+    if (invoices.length === 0) return;
+    
+    // Create backup CSV
+    const allItemNames = new Set();
+    invoices.forEach(invoice => {
+        invoice.items.forEach(item => {
+            allItemNames.add(item.name);
+        });
+    });
+    
+    const itemNamesArray = Array.from(allItemNames).sort();
+    
+    let csv = 'Invoice Number,Date,';
+    itemNamesArray.forEach(itemName => {
+        csv += `${itemName} (Qty),`;
+    });
+    csv += 'Total Amount\n';
+    
+    invoices.forEach(invoice => {
+        csv += `"${invoice.id}","${invoice.date}",`;
+        itemNamesArray.forEach(itemName => {
+            const item = invoice.items.find(i => i.name === itemName);
+            csv += item ? item.quantity : 0;
+            csv += ',';
+        });
+        csv += `${invoice.total}\n`;
+    });
+    
+    // Store backup in localStorage with date
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const backupKey = `backup-${yesterday.toISOString().split('T')[0]}`;
+    localStorage.setItem(backupKey, csv);
+    
+    // Clear invoices for new day
+    invoices = [];
+    saveInvoices();
+    
+    console.log('Daily auto-backup completed and invoices reset');
 }
 
 // Save data to localStorage
@@ -555,14 +620,152 @@ function renderManageMenu() {
     });
 }
 
+// Filter functions
+function filterReports(filterType) {
+    currentFilter = filterType;
+    currentPage = 1; // Reset to first page when filter changes
+    
+    // Update button states
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.classList.add('bg-white/20');
+        btn.classList.remove('bg-purple-600');
+    });
+    
+    const activeBtn = document.getElementById(`filter-${filterType}`);
+    activeBtn.classList.add('active');
+    activeBtn.classList.remove('bg-white/20');
+    activeBtn.classList.add('bg-purple-600');
+    
+    // Hide custom date range
+    document.getElementById('custom-date-range').classList.add('hidden');
+    
+    renderSalesReports();
+}
+
+function showCustomDateFilter() {
+    currentFilter = 'custom';
+    
+    // Update button states
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.classList.add('bg-white/20');
+        btn.classList.remove('bg-purple-600');
+    });
+    
+    const activeBtn = document.getElementById('filter-custom');
+    activeBtn.classList.add('active');
+    activeBtn.classList.remove('bg-white/20');
+    activeBtn.classList.add('bg-purple-600');
+    
+    // Show custom date range
+    document.getElementById('custom-date-range').classList.remove('hidden');
+    
+    // Set default dates
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('date-to').value = today;
+    
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    document.getElementById('date-from').value = weekAgo.toISOString().split('T')[0];
+}
+
+function applyCustomDateFilter() {
+    const dateFrom = document.getElementById('date-from').value;
+    const dateTo = document.getElementById('date-to').value;
+    
+    if (!dateFrom || !dateTo) {
+        showToast('Please select both dates', 'error');
+        return;
+    }
+    
+    if (new Date(dateFrom) > new Date(dateTo)) {
+        showToast('From date must be before To date', 'error');
+        return;
+    }
+    
+    customDateFrom = new Date(dateFrom);
+    customDateFrom.setHours(0, 0, 0, 0);
+    
+    customDateTo = new Date(dateTo);
+    customDateTo.setHours(23, 59, 59, 999);
+    
+    currentPage = 1; // Reset to first page
+    renderSalesReports();
+    showToast('Custom filter applied', 'success');
+}
+
+// Download historical backups
+function downloadHistoricalBackup() {
+    const backupDate = prompt('Enter date to download backup (YYYY-MM-DD):');
+    if (!backupDate) return;
+    
+    const backupKey = `backup-${backupDate}`;
+    const backupData = localStorage.getItem(backupKey);
+    
+    if (!backupData) {
+        showToast('No backup found for this date', 'error');
+        return;
+    }
+    
+    const blob = new Blob([backupData], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `backup-${backupDate}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    
+    showToast('Backup downloaded successfully', 'success');
+}
+
+function getFilteredInvoices() {
+    const now = new Date();
+    
+    return invoices.filter(invoice => {
+        const invoiceDate = new Date(invoice.date);
+        
+        switch(currentFilter) {
+            case 'today':
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                return invoiceDate >= today && invoiceDate < tomorrow;
+                
+            case 'week':
+                const weekStart = new Date(now);
+                weekStart.setDate(now.getDate() - now.getDay() + 1); // Monday
+                weekStart.setHours(0, 0, 0, 0);
+                return invoiceDate >= weekStart;
+                
+            case 'month':
+                const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                return invoiceDate >= monthStart;
+                
+            case 'custom':
+                if (customDateFrom && customDateTo) {
+                    return invoiceDate >= customDateFrom && invoiceDate <= customDateTo;
+                }
+                return true;
+                
+            case 'all':
+            default:
+                return true;
+        }
+    });
+}
+
 // Sales reports
 function renderSalesReports() {
-    const totalRevenue = invoices.reduce((sum, inv) => sum + inv.total, 0);
-    const totalTransactions = invoices.length;
+    const filteredInvoices = getFilteredInvoices();
+    
+    const totalRevenue = filteredInvoices.reduce((sum, inv) => sum + inv.total, 0);
+    const totalTransactions = filteredInvoices.length;
     
     // Calculate top selling item
     const itemSales = {};
-    invoices.forEach(invoice => {
+    filteredInvoices.forEach(invoice => {
         invoice.items.forEach(item => {
             if (itemSales[item.name]) {
                 itemSales[item.name] += item.quantity;
@@ -595,27 +798,35 @@ function renderSalesReports() {
     const tbody = document.getElementById('invoice-list');
     const table = document.getElementById('invoice-table');
     const noInvoicesMsg = document.getElementById('no-invoices-msg');
+    const paginationContainer = document.getElementById('pagination-controls');
     
-    if (invoices.length === 0) {
+    if (filteredInvoices.length === 0) {
         table.classList.add('hidden');
         noInvoicesMsg.classList.remove('hidden');
+        paginationContainer.classList.add('hidden');
+        noInvoicesMsg.textContent = currentFilter === 'all' ? 'No invoices yet' : 'No invoices found for selected period';
         return;
     }
     
     table.classList.remove('hidden');
     noInvoicesMsg.classList.add('hidden');
+    
+    // Pagination logic
+    const reversedInvoices = filteredInvoices.slice().reverse();
+    const totalPages = Math.ceil(reversedInvoices.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedInvoices = reversedInvoices.slice(startIndex, endIndex);
+    
     tbody.innerHTML = '';
     
-    invoices.slice().reverse().forEach(invoice => {
+    paginatedInvoices.forEach(invoice => {
         const tr = document.createElement('tr');
         tr.className = 'border-b border-white/10';
-        
-        const itemsText = invoice.items.map(i => `${i.name} (${i.quantity})`).join(', ');
         
         tr.innerHTML = `
             <td class="py-3 px-2">${invoice.id}</td>
             <td class="py-3 px-2 text-sm">${invoice.date}</td>
-            <td class="py-3 px-2 text-sm">${itemsText}</td>
             <td class="py-3 px-2 text-right font-semibold text-green-400">₹${invoice.total.toFixed(2)}</td>
             <td class="py-3 px-2 text-center">
                 <button onclick="downloadInvoice('${invoice.id}')" class="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 transition mr-2 mb-1">
@@ -628,6 +839,117 @@ function renderSalesReports() {
         `;
         tbody.appendChild(tr);
     });
+    
+    // Render pagination
+    renderPagination(totalPages, filteredInvoices.length);
+}
+
+function renderPagination(totalPages, totalItems) {
+    const container = document.getElementById('pagination-controls');
+    
+    if (totalPages <= 1) {
+        container.classList.add('hidden');
+        return;
+    }
+    
+    container.classList.remove('hidden');
+    container.innerHTML = '';
+    
+    // Info text
+    const startItem = (currentPage - 1) * itemsPerPage + 1;
+    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+    const info = document.createElement('div');
+    info.className = 'text-white text-sm';
+    info.textContent = `Showing ${startItem}-${endItem} of ${totalItems} invoices`;
+    container.appendChild(info);
+    
+    // Buttons container
+    const buttonsDiv = document.createElement('div');
+    buttonsDiv.className = 'flex gap-2 flex-wrap';
+    
+    // Previous button
+    const prevBtn = document.createElement('button');
+    prevBtn.className = `px-3 py-1 rounded ${currentPage === 1 ? 'bg-gray-600 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'} text-white transition`;
+    prevBtn.textContent = '← Prev';
+    prevBtn.disabled = currentPage === 1;
+    prevBtn.onclick = () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderSalesReports();
+        }
+    };
+    buttonsDiv.appendChild(prevBtn);
+    
+    // Page numbers
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    if (startPage > 1) {
+        const firstBtn = document.createElement('button');
+        firstBtn.className = 'px-3 py-1 rounded bg-white/20 hover:bg-white/30 text-white transition';
+        firstBtn.textContent = '1';
+        firstBtn.onclick = () => {
+            currentPage = 1;
+            renderSalesReports();
+        };
+        buttonsDiv.appendChild(firstBtn);
+        
+        if (startPage > 2) {
+            const dots = document.createElement('span');
+            dots.className = 'text-white px-2';
+            dots.textContent = '...';
+            buttonsDiv.appendChild(dots);
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        const pageBtn = document.createElement('button');
+        pageBtn.className = `px-3 py-1 rounded ${i === currentPage ? 'bg-purple-600' : 'bg-white/20 hover:bg-white/30'} text-white transition`;
+        pageBtn.textContent = i;
+        pageBtn.onclick = () => {
+            currentPage = i;
+            renderSalesReports();
+        };
+        buttonsDiv.appendChild(pageBtn);
+    }
+    
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            const dots = document.createElement('span');
+            dots.className = 'text-white px-2';
+            dots.textContent = '...';
+            buttonsDiv.appendChild(dots);
+        }
+        
+        const lastBtn = document.createElement('button');
+        lastBtn.className = 'px-3 py-1 rounded bg-white/20 hover:bg-white/30 text-white transition';
+        lastBtn.textContent = totalPages;
+        lastBtn.onclick = () => {
+            currentPage = totalPages;
+            renderSalesReports();
+        };
+        buttonsDiv.appendChild(lastBtn);
+    }
+    
+    // Next button
+    const nextBtn = document.createElement('button');
+    nextBtn.className = `px-3 py-1 rounded ${currentPage === totalPages ? 'bg-gray-600 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700'} text-white transition`;
+    nextBtn.textContent = 'Next →';
+    nextBtn.disabled = currentPage === totalPages;
+    nextBtn.onclick = () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderSalesReports();
+        }
+    };
+    buttonsDiv.appendChild(nextBtn);
+    
+    container.appendChild(buttonsDiv);
 }
 
 function downloadInvoice(invoiceId) {
@@ -692,14 +1014,16 @@ function clearAllReports() {
 }
 
 function exportCSV() {
-    if (invoices.length === 0) {
+    const filteredInvoices = getFilteredInvoices();
+    
+    if (filteredInvoices.length === 0) {
         showToast('No data to export', 'error');
         return;
     }
     
-    // Get all unique item names across all invoices
+    // Get all unique item names across filtered invoices
     const allItemNames = new Set();
-    invoices.forEach(invoice => {
+    filteredInvoices.forEach(invoice => {
         invoice.items.forEach(item => {
             allItemNames.add(item.name);
         });
@@ -715,7 +1039,7 @@ function exportCSV() {
     csv += 'Total Amount\n';
     
     // Add data rows
-    invoices.forEach(invoice => {
+    filteredInvoices.forEach(invoice => {
         csv += `"${invoice.id}","${invoice.date}",`;
         
         // For each item column, add the quantity (or 0 if not in this invoice)
@@ -733,7 +1057,10 @@ function exportCSV() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `sales-report-${new Date().toISOString().split('T')[0]}.csv`;
+    
+    // Add filter type to filename
+    const filterSuffix = currentFilter !== 'all' ? `-${currentFilter}` : '';
+    a.download = `sales-report${filterSuffix}-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
     
