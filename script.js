@@ -15,14 +15,14 @@ let dashboardCharts = {};
 
 // Default menu items
 const defaultMenu = [
-    { id: 1, name: 'Idly', price: 30, image: 'https://media.istockphoto.com/id/1145169012/photo/many-idli-or-idly-and-coconut-chutney-south-indian-breakfast.jpg?s=612x612&w=0&k=20&c=DlFMZMRfuSh2PLVereW2Ow-7DtniaCbubHNasNva1B8=' },
-    { id: 2, name: 'Dosa', price: 30, image: 'https://media.istockphoto.com/id/638506124/photo/dosa-is-a-south-indian-thin-pancake-made-of-rice-dal-batter.jpg?s=612x612&w=0&k=20&c=hGABU_BTINXwCVlBdOz1DJ8UF7hJjwpbhQT3DGB7eBg=' },
-    { id: 3, name: 'Vada', price: 20, image: 'https://media.istockphoto.com/id/1306083224/photo/medu-vada-also-known-as-urad-vada-udid-vada-is-a-savoury-fritter-from-south-india.jpg?s=612x612&w=0&k=20&c=wJWy1H0Hx_KTlbSfqmZlIxnKdCZKCPdBoPR1BLs-RKo=' },
-    { id: 4, name: 'Poori', price: 45, image: 'https://media.istockphoto.com/id/1292633701/photo/puri-bhaji-is-a-traditional-indian-breakfast-served-in-a-plate-isolated-on-plain-background.jpg?s=612x612&w=0&k=20&c=MxsD0gHRjXaGD0lOzqsZxcaZUNFXy6xQlmVXL5GpqWc=' },
-    { id: 5, name: 'Pongal', price: 35, image: 'https://media.istockphoto.com/id/1291946287/photo/pongal-or-khichdi-or-khichadi.jpg?s=612x612&w=0&k=20&c=4jAlmKzZ4UaYhxM8A-qvRhLN2RJQyMQQF9J5sGvGrXI=' },
-    { id: 6, name: 'Tea', price: 15, image: 'https://media.istockphoto.com/id/1181811066/photo/tea-in-a-glass-cup-and-saucer-cinnamon-stick-on-brown.jpg?s=612x612&w=0&k=20&c=ChBj4FzOzuI-8Eo4Wkl8KP5Wrc-OZKh7D-YHYKGCPFk=' },
-    { id: 7, name: 'Samosa', price: 20, image: 'https://media.istockphoto.com/id/1302605531/photo/samosa-is-a-fried-south-asian-pastry-with-a-savory-filling-including-ingredients-such-as.jpg?s=612x612&w=0&k=20&c=zSx0GlKbhIG9cxBjEu79T83FU3KzejQ8qLkF86_cZJk=' },
-    { id: 8, name: 'Bajji', price: 25, image: 'https://media.istockphoto.com/id/1143756502/photo/pakora-also-called-pikodi-pakodi-fakkada-bhajiya-bhajji-bhaji-or-ponako.jpg?s=612x612&w=0&k=20&c=HwwTbjWnqwFZd64x0GqXlBMG_zGtVzKUGvgJAV0PRGA=' }
+    { id: 1, name: 'Idly', price: 30, image: 'https://media.istockphoto.com/id/1145169012/photo/many-idli-or-idly-and-coconut-chutney-south-indian-breakfast.webp?b=1&s=170667a&w=0&k=20&c=DlFMZMRfuSh2PLVereW2Ow-7DtniaCbubHNasNva1B8=' },
+    { id: 2, name: 'Dosa', price: 30, image: 'https://www.awesomecuisine.com/wp-content/uploads/2009/06/Plain-Dosa.jpg' },
+    { id: 3, name: 'Vada', price: 20, image: 'https://vegecravings.com/wp-content/uploads/2018/02/Medu-Vada-Recipe-Step-By-Step-Instructions.jpg' },
+    { id: 4, name: 'Poori', price: 45, image: 'https://www.awesomecuisine.com/wp-content/uploads/2020/03/poori-masala-kizhangu-585x390.jpg' },
+    { id: 5, name: 'Pongal', price: 35, image: 'https://1.bp.blogspot.com/-t4LyKooml9g/WgLVmnE7IwI/AAAAAAAAXvo/0pb5XhLaE2EtS4su_91509RgIgWvtBXuQCLcBGAs/s1600/DSC_0930.JPG' },
+    { id: 6, name: 'Tea', price: 15, image: 'https://images.unsplash.com/photo-1610478506025-8110cc8f1986?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8M3x8Y3VwJTIwdGVhfGVufDB8fDB8fA%3D%3D&w=1000&q=80' },
+    { id: 7, name: 'Samosa', price: 20, image: 'https://cdn.pixabay.com/photo/2024/02/04/20/02/ai-generated-8553026_1280.jpg' },
+    { id: 8, name: 'Bajji', price: 25, image: 'https://tse2.mm.bing.net/th/id/OIP.dcNku05JugEAIBBbFdVZSgHaHa?rs=1&pid=ImgDetMain&o=7&rm=3' }
 ];
 
 // Load data from localStorage
